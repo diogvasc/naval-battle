@@ -1,3 +1,5 @@
+% versão 2d 100% funcional sem nave mae
+
 function battleship2d
     fig = figure('Name', 'Batalha Naval', 'NumberTitle', 'off', 'Resize', 'off', 'Position', [100, 100, 680, 500],'CloseRequestFcn', @stopMusicAndClose); % Cria a janela da interface do jogo
     gridSize = 10;
@@ -71,11 +73,11 @@ function battleship2d
         % Elementos da interface da tela inicial
         uicontrol('Style', 'text', 'String', 'Batalha Naval', 'Position', [190, 0, 300, 30], 'FontSize', 20, 'Parent', fig, 'BackgroundColor', [0.678, 0.847, 0.902], 'ForegroundColor', [0, 0, 0]);
         uicontrol('Style', 'pushbutton', 'String', 'Começar jogo', 'Position', [290, 220, 100, 40], 'Callback', @selectGameMode, 'Parent', fig, 'BackgroundColor', [0.678, 0.847, 0.902], 'ForegroundColor', [0, 0, 0]);
-        uicontrol('Style', 'pushbutton', 'String', 'Abandonar', 'Position', [290, 170, 100, 40], 'Callback', @(src, event)close(fig), 'Parent', fig, 'BackgroundColor', [0.678, 0.847, 0.902], 'ForegroundColor', [0, 0, 0]);
+        uicontrol('Style', 'pushbutton', 'String', 'Informações', 'Position', [290, 170, 100, 40], 'Callback', @informationMenu, 'Parent', fig, 'BackgroundColor', [0.678, 0.847, 0.902], 'ForegroundColor', [0, 0, 0]);
+        uicontrol('Style', 'pushbutton', 'String', 'Abandonar', 'Position', [290, 120, 100, 40], 'Callback', @(src, event)close(fig), 'Parent', fig, 'BackgroundColor', [0.678, 0.847, 0.902], 'ForegroundColor', [0, 0, 0]);    % Menu para escolher modo de jogo    
     end
 
-    % Menu para escolher modo de jogo
-    function selectGameMode(~, ~)
+        function selectGameMode(~, ~)
         clf(fig); 
 
         % Fundo (opcional)
@@ -100,6 +102,39 @@ function battleship2d
 
         uicontrol('Style', 'pushbutton', 'String', 'Voltar', ...
                   'Position', [10, 10, 80, 30], 'Callback', @(src,event)startScreen(), 'Parent', fig);
+    end
+
+    % Menu de infos
+    function informationMenu(~,~)
+        clf(fig);
+
+        % Fundo 
+        bg = imread('Battle_Menu_IMG.jpg');
+        bgResized = imresize(bg, [500, 650]);
+        ax = axes('Parent', fig, 'Position', [0 0 1 1]);
+        imagesc(ax, bgResized);
+        axis(ax, 'off');
+        uistack(ax, 'bottom');
+
+        uicontrol('Style', 'text', 'String', 'Embarcações:', ...
+                  'Position', [180, 380, 350, 40], 'FontSize', 16, ...
+                  'Parent', fig, 'BackgroundColor', [0.678, 0.847, 0.902]);
+
+        uicontrol('Style', 'text', 'String', 'Caças: 4x 1 quadrado', ...
+                  'Position', [180, 340, 350, 40], 'FontSize', 16, ...
+                  'Parent', fig, 'BackgroundColor', [0.678, 0.847, 0.902]);
+        uicontrol('Style', 'text', 'String', 'Fragatas: 3x 2 quadrados', ...
+                  'Position', [180, 300, 350, 40], 'FontSize', 16, ...
+                  'Parent', fig, 'BackgroundColor', [0.678, 0.847, 0.902]);
+        uicontrol('Style', 'text', 'String', 'Contratorpedeiros: 2x 3 quadrados', ...
+                  'Position', [180, 260, 350, 40], 'FontSize', 16, ...
+                  'Parent', fig, 'BackgroundColor', [0.678, 0.847, 0.902]);
+        uicontrol('Style', 'text', 'String', 'Cruzador: 1x 4 quadrados', ...
+                  'Position', [180, 220, 350, 40], 'FontSize', 16, ...
+                  'Parent', fig, 'BackgroundColor', [0.678, 0.847, 0.902]);
+        uicontrol('Style', 'pushbutton', 'String', 'Voltar', ...
+                 'Position', [180, 140, 350, 40], 'Callback', @(src,event)startScreen(), 'Parent', fig);
+
     end
 
     % Função para inicializar o jogo contra AI
@@ -236,23 +271,29 @@ function battleship2d
     % Função para tratar os ataques no campo do computador
     function computerBoardCallback(src, ~, row, col)
         set(src, 'Enable', 'off');
-        if computerBoard(row, col) == 0
-            computerBoard(row, col) = 3;
-            set(src, 'String', '~', 'BackgroundColor', [0.678, 0.847, 0.902]);
-            updateStatus('Falhaste!');
-            play(waterSound);
-            computerAttack();
-        elseif computerBoard(row, col) == 1
-            computerBoard(row, col) = 2;
-            set(src, 'String', 'X', 'ForegroundColor', 'white', 'BackgroundColor', 'red');
-            updateStatus('Acertaste!');
-            play(bombSound);
-            if checkWin(computerBoard)
-                updateStatus('O jogador ganha! Todos os navios afundados.');
-                disableBoard(computerButtons);
-                showVictoryScreen('Jogador');
+            if computerBoard(row, col) == 0
+                computerBoard(row, col) = 3;
+                set(src, 'String', '~', 'BackgroundColor', [0.678, 0.847, 0.902]);
+                updateStatus('Falhaste!');
+                play(waterSound);
+                set(computerButtons, 'Enable', 'off');  % <--- bloqueia tabuleiro
+                pause(1);
+                computerAttack();
+            elseif computerBoard(row, col) == 1
+                computerBoard(row, col) = 2;
+                set(src, 'String', 'X', 'ForegroundColor', 'white', 'BackgroundColor', 'red');
+                updateStatus('Acertaste!');
+                play(bombSound);
+                if checkWin(computerBoard)
+                    updateStatus('O jogador ganha! Todos os navios afundados.');
+                    disableBoard(computerButtons);
+                    showVictoryScreen('Jogador');
+                else
+                    set(computerButtons, 'Enable', 'off'); % <--- mesmo acertando, bloqueia jogada
+                    pause(1);
+                    computerAttack();
+                end
             end
-        end
     end
     
     % Função para colocar navios do computador
@@ -314,25 +355,27 @@ function battleship2d
             end
 
             if playerBoard(row, col) == 1
-                playerBoard(row, col) = 2; % Marcar como acerto
-                aiShotMatrix(row, col) = 1; % IA: Acertou
-                set(playerButtons(row, col), 'String', 'X', 'ForegroundColor', 'white', 'BackgroundColor', 'red');
-                updateStatus('O computador atingiu-te!');
-                play(bombSound); % Toca o som de acerto
-                pause(2); % Pausa de 2 segundos
-                if checkWin(playerBoard)
-                    updateStatus('O computador ganha! Todos os navios foram afundados.');
-                    disableBoard(playerButtons);
-                    showVictoryScreen('Computer');
-                else
-                    aiAttackMode = 'target'; % Muda para modo alvo
-                    computerAttack(); % Ataca novamente
-                end
+    playerBoard(row, col) = 2; % Marcar como acerto
+    aiShotMatrix(row, col) = 1; % IA: Acertou
+    set(playerButtons(row, col), 'String', 'X', 'ForegroundColor', 'white', 'BackgroundColor', 'red');
+    updateStatus('O computador atingiu-te!');
+    play(bombSound); % Toca o som de acerto
+    set(computerButtons, 'Enable', 'on'); % <- jogador pode voltar a jogar
+    pause(2); % Pausa de 2 segundos
+    if checkWin(playerBoard)
+        updateStatus('O computador ganha! Todos os navios foram afundados.');
+        disableBoard(playerButtons);
+        showVictoryScreen('Computer');
+    else
+        aiAttackMode = 'target'; % Muda para modo alvo
+    end
+
             else
                 playerBoard(row, col) = 3; % Marcar como erro
                 aiShotMatrix(row, col) = 9; % IA: Erro
                 set(playerButtons(row, col), 'String', '~', 'BackgroundColor', [0.678, 0.847, 0.902]); % Azul claro
                 updateStatus('O computador falhou.');
+                set(computerButtons, 'Enable', 'on'); % <- jogador pode voltar a jogar
                 play(waterSound); % Toca o som de erro
                 pause(1); % Pausa de 1 segundo
             end
