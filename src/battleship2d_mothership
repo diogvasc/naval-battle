@@ -1,4 +1,4 @@
-% fully functional jogo 2d - nave mae está 9x1 tem de passar para 3x3
+% versão 2d 100% funcional com nave mae TUDO OK ACHO EU
 
 function battleship2d
     fig = figure('Name', 'Batalha Naval', 'NumberTitle', 'off', 'Resize', 'off', 'Position', [100, 100, 680, 500],'CloseRequestFcn', @stopMusicAndClose); % Cria a janela da interface do jogo
@@ -8,14 +8,14 @@ function battleship2d
     computerBoard = zeros(gridSize, gridSize); % Tabuleiro do computador
     playerButtons = gobjects(gridSize, gridSize); 
     computerButtons = gobjects(gridSize, gridSize);
-    shipSizes = [1, 1, 1, 1, 2, 2, 2, 3, 3, 4, 9]; % Caças + Fragatas + Contra + Cruzador + Nave Mãe
+    shipSizes = [1, 1, 1, 1, 2, 2, 2, 3, 3, 4, 9]; % Caças + Fragatas + Contra + Cruzador + Nave-mãe
     shipSymbols = {'C', 'F', 'T', 'Z', 'M'}; % índice 1 = tamanho 1 (Caça), etc.
     shipColors = {
         [0.6, 1.0, 0.6];  % Caça (1)
         [0.4, 0.8, 1.0];  % Fragata (2)
         [1.0, 0.8, 0.4];  % Contratorpedeiro (3)
         [1.0, 0.4, 0.4];  % Cruzador (4)
-        [1.0, 0.6, 0.8]; % Nave-mãe (9)
+        [1.0, 0.8, 0.0];  % Nave-mãe (9)
     };
     currentShipSizeIndex = 1;
     shipOrientation = 'horizontal'; 
@@ -75,14 +75,13 @@ function battleship2d
         uicontrol('Style', 'text', 'String', 'Batalha Naval', 'Position', [190, 0, 300, 30], 'FontSize', 20, 'Parent', fig, 'BackgroundColor', [0.678, 0.847, 0.902], 'ForegroundColor', [0, 0, 0]);
         uicontrol('Style', 'pushbutton', 'String', 'Começar jogo', 'Position', [290, 220, 100, 40], 'Callback', @selectGameMode, 'Parent', fig, 'BackgroundColor', [0.678, 0.847, 0.902], 'ForegroundColor', [0, 0, 0]);
         uicontrol('Style', 'pushbutton', 'String', 'Informações', 'Position', [290, 170, 100, 40], 'Callback', @informationMenu, 'Parent', fig, 'BackgroundColor', [0.678, 0.847, 0.902], 'ForegroundColor', [0, 0, 0]);
-        uicontrol('Style', 'pushbutton', 'String', 'Abandonar', 'Position', [290, 120, 100, 40], 'Callback', @(src, event)close(fig), 'Parent', fig, 'BackgroundColor', [0.678, 0.847, 0.902], 'ForegroundColor', [0, 0, 0]);
+        uicontrol('Style', 'pushbutton', 'String', 'Abandonar', 'Position', [290, 120, 100, 40], 'Callback', @(src, event)close(fig), 'Parent', fig, 'BackgroundColor', [0.678, 0.847, 0.902], 'ForegroundColor', [0, 0, 0]);    % Menu para escolher modo de jogo    
     end
 
-    % Menu para escolher modo de jogo
-    function selectGameMode(~, ~)
+        function selectGameMode(~, ~)
         clf(fig); 
 
-        % Fundo 
+        % Fundo (opcional)
         bg = imread('Battle_Menu_IMG.jpg');
         bgResized = imresize(bg, [500, 650]);
         ax = axes('Parent', fig, 'Position', [0 0 1 1]);
@@ -134,8 +133,11 @@ function battleship2d
         uicontrol('Style', 'text', 'String', 'Cruzador: 1x 4 quadrados', ...
                   'Position', [180, 220, 350, 40], 'FontSize', 16, ...
                   'Parent', fig, 'BackgroundColor', [0.678, 0.847, 0.902]);
+        uicontrol('Style', 'pushbutton', 'String', 'Voltar', ...
+                 'Position', [180, 140, 350, 40], 'Callback', @(src,event)startScreen(), 'Parent', fig);
 
     end
+
     % Função para inicializar o jogo contra AI
     function initializeAIGame(~, ~)
         clf(fig); % Limpa a interface para reiniciar o jogo
@@ -174,10 +176,10 @@ function battleship2d
     function decideStartingPlayer()
         if rand < 0.5
             startingPlayer = 'player';
-            updateStatus('Vais ser tu a começar. Coloca as tuas embarcações.');
+            updateStatus('Começa o jogo. Coloca a tua nave de 5 quadrados.');
         else
             startingPlayer = 'computer';
-            updateStatus('O computador começa. Coloca as tuas embarcações.');
+            updateStatus('O computador começa. Por favor, coloquem a vossa nave de 5 quadrados.');
         end
     end
     
@@ -215,107 +217,174 @@ function battleship2d
     
     % Função para posicionar navios do jogador
     function playerBoardCallback(~, ~, row, col)
-        if numPlayerShips >= length(shipSizes)
-            updateStatus('Todos os navios já foram colocados.');
+    if numPlayerShips >= length(shipSizes)
+        updateStatus('Todos os navios já foram colocados.');
+        return;
+    end
+
+    shipSize = shipSizes(currentShipSizeIndex);
+
+    if shipSize == 9
+        % Verifica se cabe a nave-mãe (3x3)
+        if row + 2 > gridSize || col + 2 > gridSize
+            updateStatus('A nave-mãe não cabe nesta posição.');
             return;
         end
-        shipSize = shipSizes(currentShipSizeIndex);
-        % Obter letra e cor para navios normais
-        if shipSize <= 4
-            symbol = shipSymbols{shipSize};
-            color = shipColors{shipSize};
-        else
-            symbol = '?';  % placeholder, nunca deve acontecer neste ponto
-            color = [1, 1, 1];
+
+        % Verifica se espaço está livre
+        if any(any(playerBoard(row:row+2, col:col+2) ~= 0))
+            updateStatus('A nave-mãe sobrepõe-se a outro navio.');
+            return;
         end
-        if strcmp(shipOrientation, 'horizontal')
-            if col + shipSize - 1 > gridSize || ~isSpaceFree(playerBoard, row, col, shipSize, 1)
-                updateStatus('A embarcação não cabe nesta posição (horizontal) ou o espaço já está ocupado.');
-                return;
-            end
-            for i = 0:(shipSize - 1)
-                playerBoard(row, col + i) = 1;
-                set(playerButtons(row, col + i), 'String', symbol, 'Enable', 'off', 'BackgroundColor', color);
-            end
-        else
-            if row + shipSize - 1 > gridSize || ~isSpaceFree(playerBoard, row, col, shipSize, 2)
-                updateStatus('A embarcação não cabe nesta posição (vertical) ou o espaço já está ocupado.');
-                return;
-            end
-            for i = 0:(shipSize - 1)
-                playerBoard(row + i, col) = 1;
-                set(playerButtons(row + i, col), 'String', symbol, 'Enable', 'off', 'BackgroundColor', color);
+
+        % Coloca a nave-mãe
+        for r = row:row+2
+            for c = col:col+2
+                playerBoard(r, c) = 1;
+                set(playerButtons(r, c), 'String', 'M', 'Enable', 'off', 'BackgroundColor', shipColors{5});
             end
         end
+
         numPlayerShips = numPlayerShips + 1;
+
         if numPlayerShips == length(shipSizes)
-            updateStatus('Todos os navios colocados. Esperar pelo computador.');
+            updateStatus('Todos os navios colocados. Esperar pelo adversário.');
             set(findall(fig, 'String', 'Horizontal'), 'Visible', 'off');
             set(findall(fig, 'String', 'Vertical'), 'Visible', 'off');
-
             set(arrayfun(@(x) x, computerButtons), 'Enable', 'on');
+
             if strcmp(startingPlayer, 'computer')
-                updateStatus('Todos os navios colocados. O computador vai disparar.');
+                updateStatus('O adversário começa. Esperar pelo adversário.');
                 pause(1);
                 computerAttack(); 
             else 
-                updateStatus('Todos os navios colocados. Podes disparar.');
+                updateStatus('Todos os navios colocados. É a vossa vez de disparar.');
             end
         else
             currentShipSizeIndex = currentShipSizeIndex + 1;
-            updateStatus(sprintf('Colocar a embarcação de espaço %d no plano.', shipSizes(currentShipSizeIndex)));
+            updateStatus(sprintf('Colocar os campos %d no navio.', shipSizes(currentShipSizeIndex)));
+        end
+        return;
+    end
+
+    % --- Colocação normal para os outros navios ---
+    if shipSize <= 4
+        symbol = shipSymbols{shipSize};
+        color = shipColors{shipSize};
+    else
+        symbol = '?';
+        color = [1, 1, 1];
+    end
+
+    if strcmp(shipOrientation, 'horizontal')
+        if col + shipSize - 1 > gridSize || ~isSpaceFree(playerBoard, row, col, shipSize, 1)
+            updateStatus('A embarcação não cabe nesta posição (horizontal) ou o espaço já está ocupado.');
+            return;
+        end
+        for i = 0:(shipSize - 1)
+            playerBoard(row, col + i) = 1;
+            set(playerButtons(row, col + i), 'String', symbol, 'Enable', 'off', 'BackgroundColor', color);
+        end
+    else
+        if row + shipSize - 1 > gridSize || ~isSpaceFree(playerBoard, row, col, shipSize, 2)
+            updateStatus('A embarcação não cabe nesta posição (vertical) ou o espaço já está ocupado.');
+            return;
+        end
+        for i = 0:(shipSize - 1)
+            playerBoard(row + i, col) = 1;
+            set(playerButtons(row + i, col), 'String', symbol, 'Enable', 'off', 'BackgroundColor', color);
         end
     end
+
+    numPlayerShips = numPlayerShips + 1;
+
+    if numPlayerShips == length(shipSizes)
+        updateStatus('Todos os navios colocados. Esperar pelo adversário.');
+        set(findall(fig, 'String', 'Horizontal'), 'Visible', 'off');
+        set(findall(fig, 'String', 'Vertical'), 'Visible', 'off');
+        set(arrayfun(@(x) x, computerButtons), 'Enable', 'on');
+
+        if strcmp(startingPlayer, 'computer')
+            updateStatus('O adversário começa. Esperar pelo adversário.');
+            pause(1);
+            computerAttack(); 
+        else 
+            updateStatus('Todos os navios colocados. É a vossa vez de disparar.');
+        end
+    else
+        currentShipSizeIndex = currentShipSizeIndex + 1;
+        updateStatus(sprintf('Colocar os campos %d no navio.', shipSizes(currentShipSizeIndex)));
+    end
+end
 
     % Função para tratar os ataques no campo do computador
     function computerBoardCallback(src, ~, row, col)
         set(src, 'Enable', 'off');
-        if computerBoard(row, col) == 0
-            computerBoard(row, col) = 3;
-            set(src, 'String', '~', 'BackgroundColor', [0.678, 0.847, 0.902]);
-            updateStatus('Falhaste!');
-            play(waterSound);
-            computerAttack();
-        elseif computerBoard(row, col) == 1
-            computerBoard(row, col) = 2;
-            set(src, 'String', 'X', 'ForegroundColor', 'white', 'BackgroundColor', 'red');
-            updateStatus('Acertaste!');
-            play(bombSound);
-            if checkWin(computerBoard)
-                updateStatus('O jogador ganha! Todos os navios afundados.');
-                disableBoard(computerButtons);
-                showVictoryScreen('Jogador');
+            if computerBoard(row, col) == 0
+                computerBoard(row, col) = 3;
+                set(src, 'String', '~', 'BackgroundColor', [0.678, 0.847, 0.902]);
+                updateStatus('Falhaste!');
+                play(waterSound);
+                set(computerButtons, 'Enable', 'off');  % <--- bloqueia tabuleiro
+                pause(1);
+                computerAttack();
+            elseif computerBoard(row, col) == 1
+                computerBoard(row, col) = 2;
+                set(src, 'String', 'X', 'ForegroundColor', 'white', 'BackgroundColor', 'red');
+                updateStatus('Acertaste!');
+                play(bombSound);
+                if checkWin(computerBoard)
+                    updateStatus('O jogador ganha! Todos os navios afundados.');
+                    disableBoard(computerButtons);
+                    showVictoryScreen('Jogador');
+                else
+                    set(computerButtons, 'Enable', 'off'); % <--- mesmo acertando, bloqueia jogada
+                    pause(1);
+                    computerAttack();
+                end
             end
-        end
     end
     
     % Função para colocar navios do computador
     function placeComputerShips()
-        for shipSize = shipSizes
-            placed = false;
-            while ~placed
-                orientation = randi([1, 2]);
-                if orientation == 1
-                    row = randi(gridSize);
-                    col = randi([1, gridSize - shipSize + 1]);
-                else
-                    row = randi([1, gridSize - shipSize + 1]);
-                    col = randi(gridSize);
-                end
-            
-                if isSpaceFree(computerBoard, row, col, shipSize, orientation)
-                    for i = 0:(shipSize - 1)
-                        if orientation == 1
-                            computerBoard(row, col + i) = 1;
-                        else
-                            computerBoard(row + i, col) = 1;
-                        end
+    % Posiciona os navios normais
+    for shipSize = shipSizes(1:end-1)  % Todos menos a nave-mãe
+        placed = false;
+        while ~placed
+            orientation = randi([1, 2]);
+            if orientation == 1
+                row = randi(gridSize);
+                col = randi([1, gridSize - shipSize + 1]);
+            else
+                row = randi([1, gridSize - shipSize + 1]);
+                col = randi(gridSize);
+            end
+
+            if isSpaceFree(computerBoard, row, col, shipSize, orientation)
+                for i = 0:(shipSize - 1)
+                    if orientation == 1
+                        computerBoard(row, col + i) = 1;
+                    else
+                        computerBoard(row + i, col) = 1;
                     end
-                    placed = true;
                 end
+                placed = true;
             end
         end
     end
+
+    % Posiciona a nave-mãe (9 blocos, 3x3)
+    placed = false;
+    while ~placed
+        row = randi([1, gridSize - 2]);
+        col = randi([1, gridSize - 2]);
+        if all(all(computerBoard(row:row+2, col:col+2) == 0))
+            computerBoard(row:row+2, col:col+2) = 1;
+            placed = true;
+        end
+    end
+end
+    
 
     % Função para verificar se o espaço está livre
     function free = isSpaceFree(board, row, col, size, orientation)
@@ -348,25 +417,27 @@ function battleship2d
             end
 
             if playerBoard(row, col) == 1
-                playerBoard(row, col) = 2; % Marcar como acerto
-                aiShotMatrix(row, col) = 1; % IA: Acertou
-                set(playerButtons(row, col), 'String', 'X', 'ForegroundColor', 'white', 'BackgroundColor', 'red');
-                updateStatus('O computador atingiu-te!');
-                play(bombSound); % Toca o som de acerto
-                pause(2); % Pausa de 2 segundos
-                if checkWin(playerBoard)
-                    updateStatus('O computador ganha! Todos os navios foram afundados.');
-                    disableBoard(playerButtons);
-                    showVictoryScreen('Computer');
-                else
-                    aiAttackMode = 'target'; % Muda para modo alvo
-                    computerAttack(); % Ataca novamente
-                end
+    playerBoard(row, col) = 2; % Marcar como acerto
+    aiShotMatrix(row, col) = 1; % IA: Acertou
+    set(playerButtons(row, col), 'String', 'X', 'ForegroundColor', 'white', 'BackgroundColor', 'red');
+    updateStatus('O computador atingiu-te!');
+    play(bombSound); % Toca o som de acerto
+    set(computerButtons, 'Enable', 'on'); % <- jogador pode voltar a jogar
+    pause(2); % Pausa de 2 segundos
+    if checkWin(playerBoard)
+        updateStatus('O computador ganha! Todos os navios foram afundados.');
+        disableBoard(playerButtons);
+        showVictoryScreen('Computer');
+    else
+        aiAttackMode = 'target'; % Muda para modo alvo
+    end
+
             else
                 playerBoard(row, col) = 3; % Marcar como erro
                 aiShotMatrix(row, col) = 9; % IA: Erro
                 set(playerButtons(row, col), 'String', '~', 'BackgroundColor', [0.678, 0.847, 0.902]); % Azul claro
                 updateStatus('O computador falhou.');
+                set(computerButtons, 'Enable', 'on'); % <- jogador pode voltar a jogar
                 play(waterSound); % Toca o som de erro
                 pause(1); % Pausa de 1 segundo
             end
