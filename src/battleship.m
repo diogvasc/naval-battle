@@ -1,5 +1,8 @@
+% versão 1 - barcos coloridos - AI não deteta as vezes (mas ganha o jogo se
+% tiver acertado em todos, mesmo que nao tenha marcado como acerto)
+
 function battleship
-    fig = figure('Name', 'Navios que se afundam', 'NumberTitle', 'off', 'Resize', 'off', 'Position', [100, 100, 680, 500],'CloseRequestFcn', @stopMusicAndClose); % Cria a janela da interface do jogo
+    fig = figure('Name', 'Batalha Naval', 'NumberTitle', 'off', 'Resize', 'off', 'Position', [100, 100, 680, 500],'CloseRequestFcn', @stopMusicAndClose); % Cria a janela da interface do jogo
     gridSize = 10;
     depthSize = 3;
     buttonSize = [30, 30]; 
@@ -7,7 +10,14 @@ function battleship
     computerBoard = zeros(gridSize, depthSize);
 	playerButtons = gobjects(gridSize, gridSize); 
     computerButtons = gobjects(gridSize, gridSize);
-    shipSizes = [5, 4, 3, 2, 2]; 
+    shipSizes = [1, 1, 1, 1, 2, 2, 2, 3, 3, 4]; % Caças + Fragatas + Contra + Cruzador
+    shipSymbols = {'C', 'F', 'T', 'Z'}; % índice 1 = tamanho 1 (Caça), etc.
+    shipColors = {
+        [0.6, 1.0, 0.6];  % Caça (1)
+        [0.4, 0.8, 1.0];  % Fragata (2)
+        [1.0, 0.8, 0.4];  % Contratorpedeiro (3)
+        [1.0, 0.4, 0.4];  % Cruzador (4)
+    };
     currentShipSizeIndex = 1;
     shipOrientation = 'horizontal'; 
     numPlayerShips = 0;
@@ -63,23 +73,53 @@ function battleship
         uistack(ax, 'bottom'); % Envia o fundo para trás dos outros elementos
     
         % Elementos da interface da tela inicial
-        uicontrol('Style', 'text', 'String', 'Welcome to Battleship!', 'Position', [190, 0, 300, 30], 'FontSize', 20, 'Parent', fig, 'BackgroundColor', [0.678, 0.847, 0.902], 'ForegroundColor', [0, 0, 0]);
-        uicontrol('Style', 'pushbutton', 'String', 'Start Game', 'Position', [290, 220, 100, 40], 'Callback', @initializeGame, 'Parent', fig, 'BackgroundColor', [0.678, 0.847, 0.902], 'ForegroundColor', [0, 0, 0]);
-        uicontrol('Style', 'pushbutton', 'String', 'Exit Game', 'Position', [290, 170, 100, 40], 'Callback', @(src, event)close(fig), 'Parent', fig, 'BackgroundColor', [0.678, 0.847, 0.902], 'ForegroundColor', [0, 0, 0]);
+        uicontrol('Style', 'text', 'String', 'Batalha Naval', 'Position', [190, 0, 300, 30], 'FontSize', 20, 'Parent', fig, 'BackgroundColor', [0.678, 0.847, 0.902], 'ForegroundColor', [0, 0, 0]);
+        uicontrol('Style', 'pushbutton', 'String', 'Começar jogo', 'Position', [290, 220, 100, 40], 'Callback', @selectGameMode, 'Parent', fig, 'BackgroundColor', [0.678, 0.847, 0.902], 'ForegroundColor', [0, 0, 0]);
+        uicontrol('Style', 'pushbutton', 'String', 'Abandonar', 'Position', [290, 170, 100, 40], 'Callback', @(src, event)close(fig), 'Parent', fig, 'BackgroundColor', [0.678, 0.847, 0.902], 'ForegroundColor', [0, 0, 0]);
     end
 
-    % Função para inicializar o jogo
-    function initializeGame(~, ~)
+    % Menu para escolher modo de jogo
+function selectGameMode(~, ~)
+    clf(fig); 
+
+    % Fundo (opcional)
+    bg = imread('Battle_Menu_IMG.jpg');
+    bgResized = imresize(bg, [500, 650]);
+    ax = axes('Parent', fig, 'Position', [0 0 1 1]);
+    imagesc(ax, bgResized);
+    axis(ax, 'off');
+    uistack(ax, 'bottom');
+
+    uicontrol('Style', 'text', 'String', 'Escolhe o modo de jogo:', ...
+              'Position', [200, 380, 250, 40], 'FontSize', 16, ...
+              'Parent', fig, 'BackgroundColor', [0.678, 0.847, 0.902]);
+
+    uicontrol('Style', 'pushbutton', 'String', 'Player vs Player', ...
+              'Position', [240, 280, 180, 50], 'FontSize', 12, ...
+              'Callback', @initializePvPGame, 'Parent', fig);
+    
+    uicontrol('Style', 'pushbutton', 'String', 'Player vs AI', ...
+              'Position', [240, 200, 180, 50], 'FontSize', 12, ...
+              'Callback', @initializeAIGame, 'Parent', fig);
+
+    uicontrol('Style', 'pushbutton', 'String', 'Voltar', ...
+              'Position', [10, 10, 80, 30], 'Callback', @(src,event)startScreen(), 'Parent', fig);
+end
+
+
+    % Função para inicializar o jogo contra AI
+    function initializeAIGame(~, ~)
     clf(fig); % Limpa a interface para reiniciar o jogo
 
     % Define número de camadas (níveis de profundidade) para o jogo 3D
     numLayers = 3; % você pode ajustar esse valor conforme quiser
+    currentLayer = 1;  % camada visível no momento
 
     % Reinicia os tabuleiros como 3D (linha x coluna x camada)
     playerBoard = zeros(gridSize, gridSize, numLayers);
     computerBoard = zeros(gridSize, gridSize, numLayers);
     aiShotMatrix = zeros(gridSize, gridSize, numLayers);
-    aiAttackMode = 'hunt';
+    aiAttackMode = 'Caça';
 
     currentLayer = 1; % Define a camada atual visível
 
@@ -97,6 +137,14 @@ function battleship
     setupGameUI(); % Cria a interface de jogo
     placeComputerShips(); % Posiciona os navios do computador
     decideStartingPlayer(); % Decide quem começa
+end
+
+    % Função para inicializar o jogo contra player
+    function initializePvPGame(~, ~)
+    clf(fig);
+    updateStatus('Modo Player vs Player ainda não implementado.');
+    pause(2);
+    startScreen(); % Volta para o início por enquanto
 end
 
     
@@ -152,6 +200,14 @@ end
             return;
         end
         shipSize = shipSizes(currentShipSizeIndex);
+        % Obter letra e cor para navios normais
+        if shipSize <= 4
+            symbol = shipSymbols{shipSize};
+            color = shipColors{shipSize};
+        else
+            symbol = '?';  % placeholder, nunca deve acontecer neste ponto
+            color = [1, 1, 1];
+        end
         if strcmp(shipOrientation, 'horizontal')
             if col + shipSize - 1 > gridSize || ~isSpaceFree(playerBoard, row, col, shipSize, 1)
                 updateStatus('A embarcação não cabe nesta posição (horizontal) ou o espaço já está ocupado.');
@@ -159,7 +215,7 @@ end
             end
             for i = 0:(shipSize - 1)
                 playerBoard(row, col + i) = 1;
-                set(playerButtons(row, col + i), 'String', 'S', 'Enable', 'off', 'BackgroundColor', [0.5, 1, 0.5]);
+                set(playerButtons(row, col + i), 'String', symbol, 'Enable', 'off', 'BackgroundColor', color);
             end
         else
             if row + shipSize - 1 > gridSize || ~isSpaceFree(playerBoard, row, col, shipSize, 2)
@@ -168,18 +224,16 @@ end
             end
             for i = 0:(shipSize - 1)
                 playerBoard(row + i, col) = 1;
-                set(playerButtons(row + i, col), 'String', 'S', 'Enable', 'off', 'BackgroundColor', [0.5, 1, 0.5]);
+                set(playerButtons(row + i, col), 'String', symbol, 'Enable', 'off', 'BackgroundColor', color);
+
             end
         end
         numPlayerShips = numPlayerShips + 1;
         if numPlayerShips == length(shipSizes)
             updateStatus('Todos os navios colocados. Esperar pelo adversário.');
-            for i = 1:numel(playerButtons)
-                if strcmp(get(playerButtons(i), 'String'), 'S')
                     set(findall(fig, 'String', 'Horizontal'), 'Visible', 'off');
-                    set(findall(fig, 'String', 'Vertikal'), 'Visible', 'off');
-                end
-            end
+                    set(findall(fig, 'String', 'Vertical'), 'Visible', 'off');
+
             set(arrayfun(@(x) x, computerButtons), 'Enable', 'on');
             if strcmp(startingPlayer, 'computer')
                 updateStatus('O adversário começa. Esperar pelo adversário.');
@@ -192,6 +246,17 @@ end
             currentShipSizeIndex = currentShipSizeIndex + 1;
             updateStatus(sprintf('Colocar os campos %d no navio.', shipSizes(currentShipSizeIndex)));
         end
+    updateStatus('Coloca a nave-mãe (3x3x3).');
+
+            
+            % Verifica se cabe e está livre
+            if all(playerBoard(1:3, 1:3, 1:3) == 0)
+                playerBoard(1:3, 1:3, 1:3) = 1;
+                % Opcional: marca visualmente o centro do cubo
+                set(playerButtons(2, 2), 'String', 'M', 'BackgroundColor', [1 0.8 0]);
+            else
+                updateStatus('Espaço para nave-mãe já ocupado!');
+            end
     end
 
     % Função para tratar os ataques no campo do computador
@@ -218,7 +283,6 @@ end
     
     % Função para colocar navios do computador
     function placeComputerShips()
-        shipSizes = [5, 4, 3, 2, 2];
         for shipSize = shipSizes
             placed = false;
             while ~placed
@@ -243,6 +307,18 @@ end
                 end
             end
         end
+                % Nave-mãe (3x3x3)
+        placed = false;
+        while ~placed
+            row = randi([1, gridSize - 2]);
+            col = randi([1, gridSize - 2]);
+            depth = randi([1, depthSize - 2]);
+            
+            if all(computerBoard(row:row+2, col:col+2, depth:depth+2) == 0)
+                computerBoard(row:row+2, col:col+2, depth:depth+2) = 1;
+                placed = true;
+            end
+        end
     end
 
     % Função para verificar se o espaço está livre
@@ -264,56 +340,58 @@ end
     end
 
     % Função para o ataque do computador
-function computerAttack()
+    function computerAttack()
     try
         pause(1);
         [row, col, depth] = findBestMove();
-        if playerBoard(row, col) <= 1
-            if playerBoard(row, col, depth) == 1
-                playerBoard(row, col, depth) = 2; % Marcar como acerto
-                aiShotMatrix(row, col, depth) = 1; % IA: Acertou, mas ainda não afundou
-                set(playerButtons(row, col, depth), 'String', 'X', 'ForegroundColor', 'white', 'BackgroundColor', 'red');
-                updateStatus('O computador foi atingido!');
-                play(bombSound); % Toca o som de acerto
-                pause(2); % Pausa de 2 segundos
-                if checkWin(playerBoard)
-                    updateStatus('O computador ganha! Todos os navios foram afundados.');
-                    disableBoard(playerButtons);
-                    showVictoryScreen('Computer');
-                else
-                    aiAttackMode = 'target';
-                    computerAttack();
-                end
+
+        % Verifica se a célula já foi atacada
+        if aiShotMatrix(row, col, depth) ~= 0
+            computerAttack(); % tenta outra jogada
+            return;
+        end
+
+        if playerBoard(row, col, depth) == 1
+            playerBoard(row, col, depth) = 2; % Marcar como acerto
+            aiShotMatrix(row, col, depth) = 1; % IA: Acertou
+            set(playerButtons(row, col), 'String', 'X', 'ForegroundColor', 'white', 'BackgroundColor', 'red');
+            updateStatus('O computador atingiu-te!');
+            play(bombSound); % Toca o som de acerto
+            pause(2); % Pausa de 2 segundos
+            if checkWin(playerBoard)
+                updateStatus('O computador ganha! Todos os navios foram afundados.');
+                disableBoard(playerButtons);
+                showVictoryScreen('Computer');
             else
-                playerBoard(row, col, depth) = 3; % Marcar como erro
-                aiShotMatrix(row, col, depth) = 9; % IA: Erro
-                set(playerButtons(row, col, depth), 'String', '~', 'BackgroundColor', [0.678, 0.847, 0.902]); % Azul claro
-                updateStatus('O computador falhou.');
-                play(waterSound); % Toca o som de erro
-                pause(1); % Pausa de 1 segundo
+                aiAttackMode = 'target'; % Muda para modo alvo
+                computerAttack(); % Ataca novamente
             end
         else
-            computerAttack();
+            playerBoard(row, col, depth) = 3; % Marcar como erro
+            aiShotMatrix(row, col, depth) = 9; % IA: Erro
+            set(playerButtons(row, col), 'String', '~', 'BackgroundColor', [0.678, 0.847, 0.902]); % Azul claro
+            updateStatus('O computador falhou.');
+            play(waterSound); % Toca o som de erro
+            pause(1); % Pausa de 1 segundo
         end
     catch
         % Evita spam de erro caso o programa seja encerrado prematuramente
     end
+
+disp(['Atacando: (', num2str(row), ', ', num2str(col), ', ', num2str(depth), ')']);
+disp(['Valor em playerBoard: ', num2str(playerBoard(row, col, depth))]);
 end
+
 
 % Função para o movimento de caça ou alvo
 function [row, col, depth] = findBestMove()
     if strcmp(aiAttackMode, 'Caça')
-
-        % No modo Caça, selecionar posições aleatórias no padrão de tabuleiro de xadrez
+        % Selecionar posições aleatórias que ainda não foram atacadas
         foundValidMove = false;
         while ~foundValidMove
             depth = randi(depthSize);
-            row = randi(gridSize); % Seleciona uma linha aleatória
-            if mod(row, 2) == 0 % Se a linha for par
-                col = round(randi([2, gridSize])/2)*2; % Seleciona uma coluna par entre 2 e gridSize
-            else
-                col = round((randi([1, gridSize-1])-1)/2)*2 + 1; % Seleciona uma coluna ímpar entre 1 e gridSize-1
-            end
+            row = randi(gridSize);
+            col = randi(gridSize);
             % Verifica se a célula já foi atacada
             if aiShotMatrix(row, col, depth) == 0
                 foundValidMove = true; % Movimento válido encontrado
@@ -321,56 +399,52 @@ function [row, col, depth] = findBestMove()
         end
     else
         % No modo Alvo, procurar por navios atingidos
-        [row, col, depth] = findTarget();
+        [row, col, depth] = findTargetCells();
     end
 end
 
-% Função para o modo Alvo
-function [row, col] = findTarget()
-    % Procurar todas as células com acerto (valor 1) na aiShotMatrix
-    [hitRows, hitCols] = find(aiShotMatrix == 1);
-    
-    % Inicializa uma lista vazia para armazenar todas as células vizinhas válidas
+% Função para encontrar células alvo
+function [row, col, depth] = findTargetCells()
+    [hitRows, hitCols, hitDepths] = ind2sub(size(aiShotMatrix), find(aiShotMatrix == 1));
     allLegalNeighboringCells = [];
-    
+
     for i = 1:length(hitRows)
-        hitRow = hitRows(i);
-        hitCol = hitCols(i);
-        
-        % Determinar células vizinhas
-        neighboringCells = [];
-        % Verifica Norte
-        if hitRow > 1 && aiShotMatrix(hitRow - 1, hitCol) == 0
-            neighboringCells = [neighboringCells; hitRow - 1, hitCol];
+        r = hitRows(i);
+        c = hitCols(i);
+        d = hitDepths(i);
+
+        % Vizinhos em 3D (6 direções: cima, baixo, esquerda, direita, frente, trás)
+        candidates = [
+            r-1, c,   d;
+            r+1, c,   d;
+            r,   c-1, d;
+            r,   c+1, d;
+            r,   c,   d-1;
+            r,   c,   d+1
+        ];
+
+        for j = 1:size(candidates, 1)
+            rr = candidates(j,1);
+            cc = candidates(j,2);
+            dd = candidates(j,3);
+            if rr >= 1 && rr <= gridSize && cc >= 1 && cc <= gridSize && dd >= 1 && dd <= depthSize
+                if aiShotMatrix(rr, cc, dd) == 0
+                    allLegalNeighboringCells = [allLegalNeighboringCells; rr, cc, dd];
+                end
+            end
         end
-        % Verifica Sul
-        if hitRow < gridSize && aiShotMatrix(hitRow + 1, hitCol) == 0
-            neighboringCells = [neighboringCells; hitRow + 1, hitCol];
-        end
-        % Verifica Oeste
-        if hitCol > 1 && aiShotMatrix(hitRow, hitCol - 1) == 0
-            neighboringCells = [neighboringCells; hitRow, hitCol - 1];
-        end
-        % Verifica Leste
-        if hitCol < gridSize && aiShotMatrix(hitRow, hitCol + 1) == 0
-            neighboringCells = [neighboringCells; hitRow, hitCol + 1];
-        end
-        
-        % Adiciona células vizinhas válidas à lista
-        allLegalNeighboringCells = [allLegalNeighboringCells; neighboringCells];
     end
-    
-    % Se houver células vizinhas válidas, escolher uma aleatoriamente
+
     if ~isempty(allLegalNeighboringCells)
-        randomIndex = randi(size(allLegalNeighboringCells, 1));
-        row = allLegalNeighboringCells(randomIndex, 1);
-        col = allLegalNeighboringCells(randomIndex, 2);
+        idx = randi(size(allLegalNeighboringCells, 1));
+        row = allLegalNeighboringCells(idx, 1);
+        col = allLegalNeighboringCells(idx, 2);
+        depth = allLegalNeighboringCells(idx, 3);
     else
-        % Se não houver vizinhos válidos, volta para o modo Caça
         aiAttackMode = 'Caça';
-        [row, col] = findBestMove(); % Disparo aleatório no modo Caça
     end
 end
+
 
 % Função para verificar quem venceu
 function win = checkWin(board)
