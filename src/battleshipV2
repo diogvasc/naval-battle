@@ -1,4 +1,4 @@
-% versão 2d 100% funcional c playervplayer - missing ecra final e som no pvp
+% versão 2d 100% funcional 
 
 function battleship2d
     fig = figure('Name', 'Batalha Naval', 'NumberTitle', 'off', 'Resize', 'off', 'Position', [100, 100, 680, 500],'CloseRequestFcn', @stopMusicAndClose); % Cria a janela da interface do jogo
@@ -183,6 +183,12 @@ function battleship2d
     numPlayer2Ships = 0;
     gameStarted = false;
 
+    [y1, Fs1] = audioread('wasser.mp3');
+    waterSound = audioplayer(y1, Fs1);
+
+    [y2, Fs2] = audioread('bomb.mp3');
+    bombSound = audioplayer(y2, Fs2);
+
     
 
     % Interface base
@@ -307,66 +313,87 @@ function battleship2d
     end
 
     function handleAttack(row, col)
-        if currentPlayer == 1
-            targetBoard = player2Board;
-            targetButtons = player2Buttons;
-        else
-            targetBoard = player1Board;
-            targetButtons = player1Buttons;
-        end
-
-        if targetBoard(row, col) == 1
-            targetBoard(row, col) = 2;
-            set(targetButtons(row, col), 'String', 'X', 'BackgroundColor', 'red', 'Enable', 'off');
-            updateStatus(sprintf('Jogador %d acertou!', currentPlayer));
-        elseif targetBoard(row, col) == 0
-            targetBoard(row, col) = 3;
-            set(targetButtons(row, col), 'String', '~', 'BackgroundColor', [0.678, 0.847, 0.902], 'Enable', 'off');
-            updateStatus(sprintf('Jogador %d falhou.', currentPlayer));
-        else
-            updateStatus('Já foi atacado aqui.');
-            return;
-        end
-
-        if currentPlayer == 1
-            player2Board = targetBoard;
-        else
-            player1Board = targetBoard;
-        end
-
-        if all(targetBoard(:) ~= 1)
-            updateStatus(sprintf('Jogador %d ganhou!', currentPlayer));
-            disableBoard(player1Buttons);
-            disableBoard(player2Buttons);
-            return;
-        end
-
-        currentPlayer = 3 - currentPlayer;
-
-        for i = 1:gridSize
-            for j = 1:gridSize
-                if currentPlayer == 1
-                    % Jogador 1 ataca player 2
-                    if player2Board(i, j) ~= 2 && player2Board(i, j) ~= 3
-                        set(player2Buttons(i, j), 'Enable', 'on');
-                    else
-                        set(player2Buttons(i, j), 'Enable', 'off');
-                    end
-                    set(player1Buttons(i, j), 'Enable', 'off');
-                else
-                    % Jogador 2 ataca player 1
-                    if player1Board(i, j) ~= 2 && player1Board(i, j) ~= 3
-                        set(player1Buttons(i, j), 'Enable', 'on');
-                    else
-                        set(player1Buttons(i, j), 'Enable', 'off');
-                    end
-                    set(player2Buttons(i, j), 'Enable', 'off');
-                end
-            end
-        end
-
+    if currentPlayer == 1
+        targetBoard = player2Board;
+        targetButtons = player2Buttons;
+    else
+        targetBoard = player1Board;
+        targetButtons = player1Buttons;
     end
 
+    if targetBoard(row, col) == 1
+        targetBoard(row, col) = 2;
+        set(targetButtons(row, col), 'String', 'X', 'BackgroundColor', 'red', 'Enable', 'off');
+        updateStatus(sprintf('Jogador %d acertou!', currentPlayer));
+        play(bombSound);
+    elseif targetBoard(row, col) == 0
+        targetBoard(row, col) = 3;
+        set(targetButtons(row, col), 'String', '~', 'BackgroundColor', [0.678, 0.847, 0.902], 'Enable', 'off');
+        updateStatus(sprintf('Jogador %d falhou.', currentPlayer));
+        play(waterSound); 
+    else
+        updateStatus('Já foi atacado aqui.');
+        return;
+    end
+
+    if currentPlayer == 1
+        player2Board = targetBoard;
+    else
+        player1Board = targetBoard;
+    end
+
+    if all(targetBoard(:) ~= 1)
+        updateStatus(sprintf('Jogador %d ganhou!', currentPlayer));
+        disableBoard(player1Buttons);
+        disableBoard(player2Buttons);
+        showVictoryScreen(sprintf('Jogador %d', currentPlayer)); % Chama a tela de vitória
+        return;
+    end
+
+    currentPlayer = 3 - currentPlayer;
+
+    for i = 1:gridSize
+        for j = 1:gridSize
+            if currentPlayer == 1
+                if player2Board(i, j) ~= 2 && player2Board(i, j) ~= 3
+                    set(player2Buttons(i, j), 'Enable', 'on');
+                else
+                    set(player2Buttons(i, j), 'Enable', 'off');
+                end
+                set(player1Buttons(i, j), 'Enable', 'off');
+            else
+                if player1Board(i, j) ~= 2 && player1Board(i, j) ~= 3
+                    set(player1Buttons(i, j), 'Enable', 'on');
+                else
+                    set(player1Buttons(i, j), 'Enable', 'off');
+                end
+                set(player2Buttons(i, j), 'Enable', 'off');
+            end
+        end
+    end
+end
+       function showVictoryScreen(winner)
+        clf(fig); % Limpa a janela da figura
+        bg = imread('Endscreen.png');
+        bgResized = imresize(bg, [500, 650]); % Redimensiona a imagem para 500x650 pixels
+        ax = axes('Parent', fig, 'Position', [0 0 1 1]);
+        imagesc(ax, bgResized);
+        axis(ax, 'off'); % Oculta eixos e rótulos
+        uistack(ax, 'bottom'); % Envia o eixo para o fundo
+        uicontrol('Style', 'text', 'String', sprintf('%s Ganha!', winner), ...
+                  'Position', [100, 250, 450, 60], 'FontSize', 20, ...
+                  'FontWeight', 'bold', 'Parent', fig, ...
+                  'HorizontalAlignment', 'center', 'BackgroundColor', 'none', ...
+                  'ForegroundColor', [1, 1, 1]);
+        uicontrol('Style', 'pushbutton', 'String', 'Novo jogo', ...
+                  'Position', [265, 170, 150, 50], 'FontSize', 12, ...
+                  'Parent', fig, 'Callback', @(src,event)startScreen(), ...
+                  'BackgroundColor', [0, 0, 0, 0.5], 'ForegroundColor', [1, 1, 1]);
+        uicontrol('Style', 'pushbutton', 'String', 'Fim do jogo', ...
+                  'Position', [265, 110, 150, 50], 'FontSize', 12, ...
+                  'Parent', fig, 'Callback', @(src, event)close(fig), ...
+                  'BackgroundColor', [0, 0, 0, 0.5], 'ForegroundColor', [1, 1, 1]);
+    end
     function state = logicalToState(value)
         if value
             state = 'on';
@@ -758,4 +785,7 @@ end
                   'BackgroundColor', [0, 0, 0, 0.5], 'ForegroundColor', [1, 1, 1]);
     end
 end
+
+
+
 
